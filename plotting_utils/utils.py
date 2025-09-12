@@ -13,7 +13,6 @@ def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share'):
     import matplotlib.pyplot as plt
     
     fig = ax.figure
-    
     if mode == 'share':
         last_axes = plt.gca()
         divider = make_axes_locatable(ax)
@@ -21,25 +20,26 @@ def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share'):
         plt.sca(last_axes)
     else:    
         pos = ax.get_position()
+        pad /= 2.
+        width /= 2.
         if loc in ['right', 'left']:
-            cbar_width = width * pos.width / 2
+            cbar_width = width * pos.width
             cbar_height = pos.height
             if loc == 'right':
-                cbar_x = pos.x1 + pad * pos.width / 2
+                cbar_x = pos.x1 + pad * pos.width
             else:
-                cbar_x = pos.x0 - pad * pos.width / 2 - cbar_width
+                cbar_x = pos.x0 - pad * pos.width - cbar_width
             cbar_y = pos.y0
         elif loc in ['top', 'bottom']:
-            cbar_height = width * pos.height / 2
+            cbar_height = width * pos.height
             cbar_width = pos.width
             if loc == 'top':
-                cbar_y = pos.y1 + pad * pos.height / 2
+                cbar_y = pos.y1 + pad * pos.height
             else:
-                cbar_y = pos.y0 - pad * pos.height / 2 - cbar_height
+                cbar_y = pos.y0 - pad * pos.height - cbar_height
             cbar_x = pos.x0
-
         cax = fig.add_axes([cbar_x, cbar_y, cbar_width, cbar_height])
-    
+
     cbar = fig.colorbar(mappable, cax=cax, location=loc)
         
     return cbar
