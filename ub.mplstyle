@@ -1,0 +1,74 @@
+# Color and Marker cyclers
+axes.prop_cycle : (cycler('color', ['00326d', '9d2246', '008878', 'f7a600', '3b296a', '0068b4', 'd50c2f']) + cycler('marker', ['o', 'v', 'd', '^', 'o', 's', 'd']))
+#axes.prop_cycle : (cycler('color', ['1f77b4', 'ff7f0e', '2ca02c', 'd62728', '9467bd', '8c564b', 'e377c2', '7f7f7f', 'bcbd22', u'17becf']) + cycler('marker', ['^', 's', 'd', 'o', '^', 's', 'd', '^', 's', 'd']))
+#axes.prop_cycle : (cycler('color', [ '0068b4', 'd50c2f', '8acbb7', 'fece43', '8681b1', 'f6e945', 'd45b65']) + cycler('marker', ['o', 's', 'd', '^', 'o', 's', 'd']))
+
+## Fonts
+font.family : STIXGeneral
+font.size : 11
+font.weight : normal
+mathtext.fontset : stix
+
+## LaTeX
+text.usetex : True
+text.latex.preamble : \usepackage{amsmath} \usepackage{amssymb} \usepackage{siunitx} \usepackage{xfrac} \usepackage[english]{babel} \usepackage{bm}
+
+## Figsize
+figure.figsize :  4, 3
+
+## Lines and markes
+lines.linewidth : 1.
+lines.markersize : 0
+lines.markeredgecolor : 'k'
+lines.markeredgewidth : 0.5
+
+## axes and grid
+axes.linewidth : 0.75
+grid.linewidth : 0.4
+grid.alpha : 1.00
+grid.linestyle : --
+
+## title
+#axes.titlepad : 10
+axes.titlesize : medium
+
+# x axis
+# xtick.labelsize: small
+xtick.direction : in
+xtick.major.size : 3
+xtick.major.width : 0.75
+xtick.minor.size : 1.5
+xtick.minor.width : 0.5
+xtick.minor.visible : False
+xtick.top : True
+
+# Set y axis
+#ytick.labelsize: small
+ytick.direction : in
+ytick.major.size : 2
+ytick.major.width : 0.75
+ytick.minor.size : 1
+ytick.minor.width : 0.5
+ytick.minor.visible : False
+ytick.right : True
+
+# Legend
+legend.fontsize : small
+legend.frameon : False
+legend.handletextpad: 0.3
+legend.columnspacing: 1.0
+legend.framealpha : 1
+legend.borderpad : 0.2
+legend.labelspacing: 0.25
+legend.handlelength: 1.5
+#legend.borderaxespad: 0.0
+legend.edgecolor : black
+legend.facecolor : white
+legend.fancybox : False
+patch.linewidth : 0.75
+
+# Always save as 'tight'
+savefig.bbox : tight
+savefig.pad_inches : 0.025
+
+
