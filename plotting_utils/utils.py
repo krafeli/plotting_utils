@@ -1,4 +1,5 @@
-import numpy as np 
+import os
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib import cm
@@ -7,6 +8,8 @@ from scipy.interpolate import interp1d
 def apply_theme(path):
     plt.style.use(path)
     return
+
+apply_theme(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ub.mplstyle'))
 
 def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share'):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
