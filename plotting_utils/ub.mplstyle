@@ -18,7 +18,7 @@ figure.figsize :  4, 3
 
 ## Lines and markes
 lines.linewidth : 1.
-lines.markersize : 1.
+lines.markersize : 3.
 lines.markeredgecolor : 'k'
 lines.markeredgewidth : 0.5
 
