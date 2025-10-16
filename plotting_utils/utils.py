@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib import cm
 from scipy.interpolate import interp1d
+from matplotlib.colors import LinearSegmentedColormap
+
 
 def apply_theme(path):
     plt.style.use(path)
@@ -119,10 +121,54 @@ def latex_sci_formatter(decimals=3, skip=1, tight_spacing=True):
             return rf"${coeff:.{decimals}f} \cdot 10^{{{exponent}}}$"
     return formatter
 
+def twin_bottom(ax, offset=-0.15, color='k'):
+    twin = ax.twiny()
+    twin.xaxis.set_ticks_position("bottom")
+    twin.xaxis.set_label_position("bottom")
+
+    # Offset the twin axis below the host
+    twin.spines["bottom"].set_position(("axes", offset))
+
+    # Turn on the frame for the twin axis, but then hide all
+    # but the bottom spine
+    twin.set_frame_on(True)
+    twin.patch.set_visible(False)
+    for sp in twin.spines.values():
+        sp.set_visible(False)
+    twin.spines["bottom"].set_visible(True)
+    twin.spines["bottom"].set_color(color)
+    twin.tick_params(axis='x', colors=color)
+    return twin
+
+def get_colors(i=None):
+    from matplotlib import rcParams
+    colors = rcParams['axes.prop_cycle'].by_key()['color']
+    if i is None:
+        return colors
+    else:
+        return colors[i]
+
+def move_ticks_labels(axes, x=None, y=None):
+
+    for ax in axes:
+        if y in ("left", "right"):
+            ax.yaxis.set_label_position(y)
+            if y == "left":
+                ax.yaxis.tick_left()
+            else:
+                ax.yaxis.tick_right()
+
+        if x in ("top", "bottom"):
+            ax.xaxis.set_label_position(x)
+            if x == "bottom":
+                ax.xaxis.tick_bottom()
+            else:
+                ax.xaxis.tick_top()
+                
+
 def parula():
-    from matplotlib.colors import LinearSegmentedColormap
     # Parula RGB data sampled from MATLAB
-    parula_colors = np.array([
+    colors = np.array([
     [0.2081, 0.1663, 0.5292],
     [0.2116, 0.1898, 0.5777],
     [0.2123, 0.2138, 0.6270],
@@ -188,57 +234,80 @@ def parula():
     [0.9661, 0.9514, 0.0755],
     [0.9763, 0.9831, 0.0538],
     ])  # Shape: (N, 3)
+    return LinearSegmentedColormap.from_list("parula", colors)
 
-    return LinearSegmentedColormap.from_list("parula", parula_colors)
+def bluewhitered():
+    colors = np.array([
+    [0.        , 0.447     , 0.741     ],
+    [0.03225806, 0.46483871, 0.74935484],
+    [0.06451613, 0.48267742, 0.75770968],
+    [0.09677419, 0.50051613, 0.76606452],
+    [0.12903226, 0.51835484, 0.77441935],
+    [0.16129032, 0.53619355, 0.78277419],
+    [0.19354839, 0.55403226, 0.79112903],
+    [0.22580645, 0.57187097, 0.79948387],
+    [0.25806452, 0.58970968, 0.80783871],
+    [0.29032258, 0.60754839, 0.81619355],
+    [0.32258065, 0.6253871 , 0.82454839],
+    [0.35483871, 0.64322581, 0.83290323],
+    [0.38709677, 0.66106452, 0.84125806],
+    [0.41935484, 0.67890323, 0.8496129 ],
+    [0.4516129 , 0.69674194, 0.85796774],
+    [0.48387097, 0.71458065, 0.86632258],
+    [0.51612903, 0.73241935, 0.87467742],
+    [0.5483871 , 0.75025806, 0.88303226],
+    [0.58064516, 0.76809677, 0.8913871 ],
+    [0.61290323, 0.78593548, 0.89974194],
+    [0.64516129, 0.80377419, 0.90809677],
+    [0.67741935, 0.8216129 , 0.91645161],
+    [0.70967742, 0.83945161, 0.92480645],
+    [0.74193548, 0.85729032, 0.93316129],
+    [0.77419355, 0.87512903, 0.94151613],
+    [0.80645161, 0.89296774, 0.94987097],
+    [0.83870968, 0.91080645, 0.95822581],
+    [0.87096774, 0.92864516, 0.96658065],
+    [0.90322581, 0.94648387, 0.97493548],
+    [0.93548387, 0.96432258, 0.98329032],
+    [0.96774194, 0.98216129, 0.99164516],
+    [1.        , 1.        , 1.        ],
+    [1.        , 1.        , 1.        ],
+    [0.99516129, 0.97822581, 0.97090323],
+    [0.99032258, 0.95645161, 0.94180645],
+    [0.98548387, 0.93467742, 0.91270968],
+    [0.98064516, 0.91290323, 0.8836129 ],
+    [0.97580645, 0.89112903, 0.85451613],
+    [0.97096774, 0.86935484, 0.82541935],
+    [0.96612903, 0.84758065, 0.79632258],
+    [0.96129032, 0.82580645, 0.76722581],
+    [0.95645161, 0.80403226, 0.73812903],
+    [0.9516129 , 0.78225806, 0.70903226],
+    [0.94677419, 0.76048387, 0.67993548],
+    [0.94193548, 0.73870968, 0.65083871],
+    [0.93709677, 0.71693548, 0.62174194],
+    [0.93225806, 0.69516129, 0.59264516],
+    [0.92741935, 0.6733871 , 0.56354839],
+    [0.92258065, 0.6516129 , 0.53445161],
+    [0.91774194, 0.62983871, 0.50535484],
+    [0.91290323, 0.60806452, 0.47625806],
+    [0.90806452, 0.58629032, 0.44716129],
+    [0.90322581, 0.56451613, 0.41806452],
+    [0.8983871 , 0.54274194, 0.38896774],
+    [0.89354839, 0.52096774, 0.35987097],
+    [0.88870968, 0.49919355, 0.33077419],
+    [0.88387097, 0.47741935, 0.30167742],
+    [0.87903226, 0.45564516, 0.27258065],
+    [0.87419355, 0.43387097, 0.24348387],
+    [0.86935484, 0.41209677, 0.2143871 ],
+    [0.86451613, 0.39032258, 0.18529032],
+    [0.85967742, 0.36854839, 0.15619355],
+    [0.85483871, 0.34677419, 0.12709677],
+    [0.85      , 0.325     , 0.098     ]])
+    
+    return LinearSegmentedColormap.from_list("bluewhitered", colors)
+
 
 def truncate_colormap(cmap, min_val=0.2, max_val=1.0, n=256):
     import matplotlib.colors as mcolors
     new_colors = cmap(np.linspace(min_val, max_val, n))
     new_cmap = mcolors.LinearSegmentedColormap.from_list(f'trunc({cmap.name},{min_val},{max_val})', new_colors)
     return new_cmap
-
-def twin_bottom(ax, offset=-0.15, color='k'):
-    twin = ax.twiny()
-    twin.xaxis.set_ticks_position("bottom")
-    twin.xaxis.set_label_position("bottom")
-
-    # Offset the twin axis below the host
-    twin.spines["bottom"].set_position(("axes", offset))
-
-    # Turn on the frame for the twin axis, but then hide all
-    # but the bottom spine
-    twin.set_frame_on(True)
-    twin.patch.set_visible(False)
-    for sp in twin.spines.values():
-        sp.set_visible(False)
-    twin.spines["bottom"].set_visible(True)
-    twin.spines["bottom"].set_color(color)
-    twin.tick_params(axis='x', colors=color)
-    return twin
-
-def get_colors(i=None):
-    from matplotlib import rcParams
-    colors = rcParams['axes.prop_cycle'].by_key()['color']
-    if i is None:
-        return colors
-    else:
-        return colors[i]
-
-def move_ticks_labels(axes, x=None, y=None):
-
-    for ax in axes:
-        if y in ("left", "right"):
-            ax.yaxis.set_label_position(y)
-            if y == "left":
-                ax.yaxis.tick_left()
-            else:
-                ax.yaxis.tick_right()
-
-        if x in ("top", "bottom"):
-            ax.xaxis.set_label_position(x)
-            if x == "bottom":
-                ax.xaxis.tick_bottom()
-            else:
-                ax.xaxis.tick_top()
-                
-                

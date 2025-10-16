@@ -5,7 +5,7 @@ axes.prop_cycle : (cycler('color', ['00326d', '9d2246', '008878', 'f7a600', '3b2
 
 ## Fonts
 font.family : STIXGeneral
-font.size : 11
+font.size : 10
 font.weight : normal
 mathtext.fontset : stix
 
@@ -18,7 +18,7 @@ figure.figsize :  4, 3
 
 ## Lines and markes
 lines.linewidth : 1.
-lines.markersize : 3.
+lines.markersize : 0.
 lines.markeredgecolor : 'k'
 lines.markeredgewidth : 0.5
 
