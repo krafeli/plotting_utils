@@ -26,7 +26,7 @@ lines.markeredgewidth : 0.5
 axes.linewidth : 0.75
 grid.linewidth : 0.4
 grid.alpha : 1.00
-grid.linestyle : --
+
 
 ## title
 #axes.titlepad : 10
@@ -54,14 +54,14 @@ ytick.right : True
 
 # Legend
 legend.fontsize : small
-legend.frameon : False
+legend.frameon : True
 legend.handletextpad: 0.3
 legend.columnspacing: 1.0
 legend.framealpha : 1
-legend.borderpad : 0.2
+legend.borderpad : 0.4
 legend.labelspacing: 0.25
 legend.handlelength: 1.5
-#legend.borderaxespad: 0.0
+legend.borderaxespad: 0.0
 legend.edgecolor : black
 legend.facecolor : white
 legend.fancybox : False
