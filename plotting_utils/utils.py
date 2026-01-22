@@ -58,22 +58,37 @@ def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share', r
     return cbar
 
 
-def enumerate_plots(fig, axes=None, labels=None):
+def enumerate_plots(fig, axes=None, labels=None, anchor='ylabel', counter=0):
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     if axes is None:
         axes = fig.axes
 
     for i, ax in enumerate(axes):
-        ylabel_bbox = ax.yaxis.label.get_tightbbox(renderer)
-        pixel_coords = ylabel_bbox.bounds
-        centers = (pixel_coords[0] + pixel_coords[2] / 2, pixel_coords[1] + pixel_coords[3] / 2)
-        axes_coords = ax.transAxes.inverted().transform(centers)
-        if not labels:
-            ax.text(axes_coords[0], 1, s=r'{(' + chr(97+i) + ')}', va='top', ha='center', transform=ax.transAxes)
+
+        if anchor=='title':
+            _bbox = ax.title.get_tightbbox(renderer)
+            pixel_coords = _bbox.bounds
+            centers = (pixel_coords[0] + pixel_coords[2] / 2, pixel_coords[1] + pixel_coords[3] / 2)
+            axes_coords = ax.transAxes.inverted().transform(centers)
+            x, y = 0., axes_coords[1]
+            va, ha = 'center', 'left'
+
         else:
-            ax.text(axes_coords[0], 1, s=labels[i], va='top', ha='center', transform=ax.transAxes)
+            _bbox = ax.yaxis.label.get_tightbbox(renderer)
+            pixel_coords = _bbox.bounds
+            centers = (pixel_coords[0] + pixel_coords[2] / 2, pixel_coords[1] + pixel_coords[3] / 2)
+            axes_coords = ax.transAxes.inverted().transform(centers)
+            x, y = axes_coords[0], 1.
+            va, ha = 'top', 'center'
+
+        if not labels:
+            ax.text(x, y, s=r'{(' + chr(97+i+counter) + ')}', va=va, ha=ha, transform=ax.transAxes)
+        else:
+            ax.text(x, y, s=labels[i], va=va, ha=ha, transform=ax.transAxes)
     return fig
+
+
 
 def zoom_axis(ax, bounds, xlim=None, ylim=None, xticklabels=[], yticklabels=[], lw=1, lc="k", ls='-', alpha=1.,
               ticks=False, remove_lines=True):

@@ -1,5 +1,5 @@
 # Color and Marker cyclers
-axes.prop_cycle : (cycler('color', ['b', 'r', 'g', 'cyan', 'magenta']))
+axes.prop_cycle : (cycler('color', ['k', 'b', 'r', 'g', 'cyan', 'magenta']))
 
 ## Fonts
 font.family : STIXGeneral
