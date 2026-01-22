@@ -106,11 +106,13 @@ def zoom_axis(ax, bounds, xlim=None, ylim=None, xticklabels=[], yticklabels=[], 
         spine.set_linestyle(ls)
 
     rect, lines = ax.indicate_inset_zoom(axins, linewidth=lw, edgecolor=lc, alpha=alpha, linestyle=ls)
+    #rect.set_linestyle(ls)
     for line in lines:
+
         line.set_color(lc)
         line.set_alpha(alpha)
         if remove_lines:
-            line.set_linewidth(0)
+            line.set_alpha(0)
 
     if not ticks:
         axins.tick_params(axis='both', which='both', left=False, right=False, top=False, bottom=False)
@@ -431,3 +433,44 @@ def cmapcycler(cmap, n, vmin=0.05, vmax=0.95):
     colors = cmap(np.linspace(vmin, vmax, n))
     plt.rcParams["axes.prop_cycle"] = cycler(color=colors)
     return cycler(color=colors)
+
+
+
+def merge(pdf_path_left, pdf_path_right, output_path, padding=10):
+    from pypdf import PdfReader, PdfWriter, Transformation
+
+    reader_left = PdfReader(pdf_path_left)
+    reader_right = PdfReader(pdf_path_right)
+
+    page_left = reader_left.pages[0]
+    page_right = reader_right.pages[0]
+
+    w_left, h_left = page_left.mediabox.width, page_left.mediabox.height
+    w_right, h_right = page_right.mediabox.width, page_right.mediabox.height
+
+    out_height = max(h_left, h_right)
+    out_width = w_left + w_right + padding
+
+    writer = PdfWriter()
+    output_page = writer.add_blank_page(
+        width=out_width,
+        height=out_height
+    )
+
+    # Vertical centering offsets
+    y_left = (out_height - h_left) / 2
+    y_right = (out_height - h_right) / 2
+
+    # Left page
+    transform_left = Transformation().translate(tx=0, ty=y_left)
+    output_page.merge_transformed_page(page_left, transform_left)
+
+    # Right page (shifted by left width + padding)
+    transform_right = Transformation().translate(
+        tx=w_left + padding,
+        ty=y_right
+    )
+    output_page.merge_transformed_page(page_right, transform_right)
+
+    with open(output_path, "wb") as f:
+        writer.write(f)
