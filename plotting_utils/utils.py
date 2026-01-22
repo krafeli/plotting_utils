@@ -192,7 +192,7 @@ def get_colors(i=None):
     else:
         return colors[i]
 
-def move_ticks_labels(axes, x=None, y=None):
+def move_ticks_labels(axes, x="bottom", y="right"):
 
     for ax in axes:
         if y in ("left", "right"):
