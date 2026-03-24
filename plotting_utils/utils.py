@@ -5,7 +5,7 @@ from matplotlib.collections import LineCollection
 from matplotlib import cm
 from scipy.interpolate import interp1d
 from matplotlib.colors import LinearSegmentedColormap
-
+import matplotlib.colors as mcolors
 
 def apply_theme(path):
     plt.style.use(path)
@@ -22,7 +22,6 @@ apply_theme(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ub.mplstyl
 def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share', rect=True):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     import matplotlib.pyplot as plt
-    
     fig = ax.figure
     if mode == 'share':
         last_axes = plt.gca()
@@ -50,19 +49,83 @@ def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share', r
                 cbar_y = pos.y0 - pad * pos.height - cbar_height
             cbar_x = pos.x0
         cax = fig.add_axes([cbar_x, cbar_y, cbar_width, cbar_height])
-
+    
     cax.grid(False)
     cax.set_rasterized(True)
     cbar = fig.colorbar(mappable, cax=cax, location=loc, extendrect=rect)
-    
     return cbar
 
 
-def enumerate_plots(fig, axes=None, labels=None, anchor='ylabel', counter=0):
+def add_colorbar2(ax, mappable, width=0.05, length=1.0, pad=0.05, offset=0.0, loc='right', mode='new',
+                  norm=None, rect=True):
+
+    if loc not in ['right', 'left', 'top', 'bottom']:
+        raise ValueError('Invalid location')
+
+    fig = ax.figure
+    fig.canvas.draw()
+    pos = ax.get_position()
+    x0, y0, x1, y1 = pos.x0, pos.y0, pos.x1, pos.y1
+    h, w = pos.height, pos.width
+
+    if norm is None:
+        norm = min(h, w)
+    elif norm == 'width':
+        norm = w
+    elif norm == 'height':
+        norm = h
+    else:
+        raise ValueError('Invalid norm')
+
+    width = width * norm
+    pad = pad * norm
+
+
+    if mode == 'new':
+        if loc == 'right':
+            cbar_pos = [x1+pad, y0 + h*(1-length+offset)/2, width, length*h]
+        elif loc == 'left':
+            cbar_pos = [x0 - pad - width, y0 + h*(1-length+offset)/2, width, length*h]
+        elif loc == 'top':
+            cbar_pos = [x0 + w*(1-length+offset)/2, y1 + pad, length*w, width]
+        elif loc == 'bottom':
+            cbar_pos = [x0 + w*(1-length+offset)/2, y0 - pad - width, length*w, width]
+        ax_pos = [x0, y0, w, h]
+
+    elif mode == 'share':
+        if loc == 'right':
+            cbar_pos = [x1 -width, y0 + h*(1-length+offset)/2, width, length*h]
+            ax_pos = [x0, y0, w - width - pad, h]
+        elif loc == 'left':
+            cbar_pos = [x0, y0 + h*(1 - length+offset)/2, width, length*h]
+            ax_pos = [x0 + width + pad, y0, w - width - pad, h]
+        elif loc == 'top':
+            cbar_pos = [x0+w*(1-length+offset)/2, y1 - width, length*w, width]
+            ax_pos = [x0, y0, w, h - width - pad]
+        elif loc == 'bottom':
+            cbar_pos = [x0 + w * (1 - length + offset) / 2, y0 - width - pad, length * w, width]
+            ax_pos = [x0, y0+width, w, h - width]
+
+    cax = fig.add_axes(cbar_pos)
+    ax.set_position(ax_pos)
+
+    cax.grid(False)
+    cax.set_rasterized(True)
+    cbar = fig.colorbar(mappable, cax=cax,  extendrect=rect, location=loc)
+    return cbar
+
+
+
+
+def enumerate_plots(fig, axes=None, labels=None, anchor='ylabel', counter=0, offset=(0,0), va=None, ha=None):
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     if axes is None:
         axes = fig.axes
+
+    for ax in axes:
+        if ax.title._text == '':
+            ax.set_title(" ")
 
     for i, ax in enumerate(axes):
 
@@ -71,17 +134,18 @@ def enumerate_plots(fig, axes=None, labels=None, anchor='ylabel', counter=0):
             pixel_coords = _bbox.bounds
             centers = (pixel_coords[0] + pixel_coords[2] / 2, pixel_coords[1] + pixel_coords[3] / 2)
             axes_coords = ax.transAxes.inverted().transform(centers)
-            x, y = 0., axes_coords[1]
-            va, ha = 'center', 'left'
+            x, y = 0.+offset[0], axes_coords[1]+offset[1]
+            if not va: va = 'center'
+            if not ha: ha = 'left'
 
         else:
             _bbox = ax.yaxis.label.get_tightbbox(renderer)
             pixel_coords = _bbox.bounds
             centers = (pixel_coords[0] + pixel_coords[2] / 2, pixel_coords[1] + pixel_coords[3] / 2)
             axes_coords = ax.transAxes.inverted().transform(centers)
-            x, y = axes_coords[0], 1.
-            va, ha = 'top', 'center'
-
+            x, y = axes_coords[0] + offset[0], 1. + offset[1]
+            if not va: va = 'top'
+            if not ha: ha = 'center'
         if not labels:
             ax.text(x, y, s=r'{(' + chr(97+i+counter) + ')}', va=va, ha=ha, transform=ax.transAxes)
         else:
@@ -90,20 +154,26 @@ def enumerate_plots(fig, axes=None, labels=None, anchor='ylabel', counter=0):
 
 
 
-def zoom_axis(ax, bounds, xlim=None, ylim=None, xticklabels=[], yticklabels=[], lw=1, lc="k", ls='-', alpha=1.,
-              ticks=False, remove_lines=True):
+def zoom_axis(ax, bounds, bounds_coords="axes", xlim=None, ylim=None, xticklabels=[], yticklabels=[], lw=1, lc="k", ls='-', alpha=1., box=True,
+              ticks=False, remove_lines=True, style_spines=False):
+
+
+    if bounds_coords == "data":
+        transform = ax.transData
+    else:
+        transform = ax.transAxes
 
     axins = ax.inset_axes(bounds,
                           xlim=xlim,
                           ylim=ylim,
                           xticklabels=xticklabels,
                           yticklabels=yticklabels,
-                          transform=ax.transAxes)
-
-    for spine in axins.spines.values():
-        spine.set_color(lc)
-        spine.set_linewidth(lw)
-        spine.set_linestyle(ls)
+                          transform=transform)
+    if style_spines: 
+        for spine in axins.spines.values():
+            spine.set_color(lc)
+            spine.set_linewidth(lw)
+            spine.set_linestyle(ls)
 
     rect, lines = ax.indicate_inset_zoom(axins, linewidth=lw, edgecolor=lc, alpha=alpha, linestyle=ls)
     #rect.set_linestyle(ls)
@@ -113,6 +183,9 @@ def zoom_axis(ax, bounds, xlim=None, ylim=None, xticklabels=[], yticklabels=[], 
         line.set_alpha(alpha)
         if remove_lines:
             line.set_alpha(0)
+    
+    if not box:
+        rect.set_edgecolor('none')
 
     if not ticks:
         axins.tick_params(axis='both', which='both', left=False, right=False, top=False, bottom=False)
@@ -120,16 +193,28 @@ def zoom_axis(ax, bounds, xlim=None, ylim=None, xticklabels=[], yticklabels=[], 
     return axins
 
 
-def cmap_line(ax, x, y, values, cmap='viridis', lw=1, vmax=None, vmin=None):
+def colored_line(ax, x, y, values, cmap='viridis', lw=1, vmax=None, vmin=None, lognorm=False):
+    default_kwargs = {"capstyle": "butt"}
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    norm = plt.Normalize(vmin, vmax)
 
-    lc = LineCollection(segments, cmap=cmap, norm=norm)
-    lc.set_array(values)
+    values = np.asarray(values).ravel()
+    # --- norm ---
+    if lognorm:
+        if vmin is None:
+            vmin = np.nanmin(values[values > 0])
+        if vmax is None:
+            vmax = np.nanmax(values)
+        norm = mcolors.LogNorm(vmin=vmin, vmax=vmax)
+    else:
+        norm = plt.Normalize(vmin, vmax)
+
+    lc = LineCollection(segments, norm=norm, cmap=cmap, **default_kwargs)
+    lc.set_array(values)          # now correct length (N-1)
     lc.set_linewidth(lw)
     line = ax.add_collection(lc)
     lc.set_antialiased(False)
+
     return ax, line, lc
 
 def latex_sci_formatter(decimals=3, skip=1, tight_spacing=True):
@@ -146,13 +231,15 @@ def latex_sci_formatter(decimals=3, skip=1, tight_spacing=True):
             return rf"${coeff:.{decimals}f} \cdot 10^{{{exponent}}}$"
     return formatter
 
-def float_formatter(decimals=3, skip=1):
+def float_formatter(decimals=3, skip=1, sign=False):
     def formatter(x, pos):
         if skip > 1 and int(pos) % skip != 0:
             return ""
-        if x == 0:
-            return "0"
-        return rf"${x:.{decimals}f}$"
+        sgn = ""
+        if sign:
+            if x >= 0:
+                sgn = "+"
+        return rf"${sgn}{x:.{decimals}f}$"
     return formatter
 
 def latex_sci_number_formatter(x, decimals=3, tight_spacing=True, multiply=r'\cdot'):
@@ -163,7 +250,6 @@ def latex_sci_number_formatter(x, decimals=3, tight_spacing=True, multiply=r'\cd
     else:
         return rf"${coeff:.{decimals}f} {multiply} 10^{{{exponent}}}$"
         
-
 
 def twin_bottom(ax, offset=-0.15, color='k'):
     twin = ax.twiny()
@@ -218,7 +304,7 @@ def truncate_colormap(cmap, min_val=0.2, max_val=1.0, n=256):
   
 
 def get_colormap(name):
-    if name == 'parula':
+    if 'parula' in name:
         colors = np.array([
         [0.2081, 0.1663, 0.5292],
         [0.2116, 0.1898, 0.5777],
@@ -285,7 +371,7 @@ def get_colormap(name):
         [0.9661, 0.9514, 0.0755],
         [0.9763, 0.9831, 0.0538],
         ])
-    elif name=='bluewhitered':
+    elif 'white' in name:
         colors = np.array([
         [0.        , 0.447     , 0.741     ],
         [0.03225806, 0.46483871, 0.74935484],
@@ -353,7 +439,9 @@ def get_colormap(name):
         [0.85967742, 0.36854839, 0.15619355],
         [0.85483871, 0.34677419, 0.12709677],
         [0.85      , 0.325     , 0.098     ]])
-        
+    
+    if '_r' in name:
+        colors = colors[::-1]
     return LinearSegmentedColormap.from_list(name, colors)
 
 
@@ -457,9 +545,9 @@ def merge(pdf_path_left, pdf_path_right, output_path, padding=10):
         height=out_height
     )
 
-    # Vertical centering offsets
-    y_left = (out_height - h_left) / 2
-    y_right = (out_height - h_right) / 2
+    # --- bottom alignment ---
+    y_left = 0
+    y_right = 0
 
     # Left page
     transform_left = Transformation().translate(tx=0, ty=y_left)
@@ -474,3 +562,55 @@ def merge(pdf_path_left, pdf_path_right, output_path, padding=10):
 
     with open(output_path, "wb") as f:
         writer.write(f)
+
+
+def figsize(nrows, ncols, init='classic'):
+    import matplotlib as mpl
+
+    try: 
+        init_theme(init)
+    except:
+        pass
+
+    mpl.rcParams["figure.subplot.bottom"] = mpl.rcParams["figure.subplot.bottom"] / nrows
+    mpl.rcParams["figure.subplot.top"] = 1 - (1-mpl.rcParams["figure.subplot.top"])/ nrows
+    
+    mpl.rcParams["figure.subplot.left"] = mpl.rcParams["figure.subplot.left"] / ncols
+    mpl.rcParams["figure.subplot.right"] = 1 - (1-mpl.rcParams["figure.subplot.right"])/ ncols
+
+    
+
+    rc = mpl.rcParams
+    (ax_w, ax_h) = rc['figure.figsize']
+    left   = rc["figure.subplot.left"]
+    right  = rc["figure.subplot.right"]
+    bottom = rc["figure.subplot.bottom"]
+    top    = rc["figure.subplot.top"]
+    wspace = rc["figure.subplot.wspace"]
+    hspace = rc["figure.subplot.hspace"]
+
+
+    #print(mpl.rcParams["figure.subplot.bottom"], mpl.rcParams["figure.subplot.top"])
+    # Total grid size in inches
+    grid_w = ncols * ax_w + (ncols - 1) * wspace * ax_w
+    grid_h = nrows * ax_h + (nrows - 1) * hspace * ax_h
+
+    # Convert margins from fractions → inches
+    fig_w = grid_w / (right - left)
+    fig_h = grid_h / (top - bottom)
+    return fig_w, fig_h
+
+def box_save(fig, pth, dpi=1000, top=0., bot=0., left=0., right=0.):
+    from matplotlib.transforms import Bbox
+    fig.canvas.draw()
+    bbox = fig.bbox_inches
+
+
+    new_bbox = Bbox.from_extents(
+        bbox.x0 + left,
+        bbox.y0 + bot,
+        bbox.x1 - right,
+        bbox.y1 - top
+    )
+
+    fig.savefig(pth, dpi=dpi, bbox_inches=new_bbox)

@@ -16,6 +16,7 @@ text.latex.preamble : \usepackage{amsmath} \usepackage{amssymb} \usepackage{siun
 ## Figsize
 figure.figsize :  4, 3
 
+
 ## Lines and markes
 lines.linewidth : 1.
 lines.markersize : 0.
