@@ -56,8 +56,7 @@ def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share', r
     return cbar
 
 
-def add_colorbar2(ax, mappable, width=0.05, length=1.0, pad=0.05, offset=0.0, loc='right', mode='new',
-                  norm=None, rect=True):
+def add_colorbar2(ax, mappable, width=0.05, length=1.0, pad=0.05, offset=0.0, loc='right', mode='new', norm=None, rect=True):
 
     if loc not in ['right', 'left', 'top', 'bottom']:
         raise ValueError('Invalid location')
@@ -154,8 +153,7 @@ def enumerate_plots(fig, axes=None, labels=None, anchor='ylabel', counter=0, off
 
 
 
-def zoom_axis(ax, bounds, bounds_coords="axes", xlim=None, ylim=None, xticklabels=[], yticklabels=[], lw=1, lc="k", ls='-', alpha=1., box=True,
-              ticks=False, remove_lines=True, style_spines=False):
+def zoom_axis(ax, bounds, bounds_coords="axes", xlim=None, ylim=None, xticklabels=[], yticklabels=[], lw=1, lc="k", ls='-', alpha=1., box=True, ticks=False, remove_lines=True, style_spines=False, zorder=10):
 
 
     if bounds_coords == "data":
@@ -168,14 +166,18 @@ def zoom_axis(ax, bounds, bounds_coords="axes", xlim=None, ylim=None, xticklabel
                           ylim=ylim,
                           xticklabels=xticklabels,
                           yticklabels=yticklabels,
-                          transform=transform)
-    if style_spines: 
-        for spine in axins.spines.values():
+                          transform=transform,
+                          zorder=zorder)
+    
+    for spine in axins.spines.values():
+        spine.set_zorder(zorder)
+        if style_spines: 
             spine.set_color(lc)
             spine.set_linewidth(lw)
             spine.set_linestyle(ls)
+            
 
-    rect, lines = ax.indicate_inset_zoom(axins, linewidth=lw, edgecolor=lc, alpha=alpha, linestyle=ls)
+    rect, lines = ax.indicate_inset_zoom(axins, linewidth=lw, edgecolor=lc, alpha=alpha, linestyle=ls, zorder=zorder)
     #rect.set_linestyle(ls)
     for line in lines:
 
