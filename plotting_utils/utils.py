@@ -3,13 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib import cm
-from matplotlib.colors import LinearSegmentedColormap, Normalize, to_rgba, Colormap
+from matplotlib.colors import LinearSegmentedColormap, Normalize, to_rgba, Colormap, ListedColormap
 import matplotlib.colors as mcolors
 from matplotlib.collections import PolyCollection
 from skimage.measure import marching_cubes
 from scipy.ndimage import map_coordinates
 from matplotlib.tri import Triangulation
 from scipy.ndimage import gaussian_filter
+from matplotlib.cm import ScalarMappable
+
 
 def apply_theme(path):
     plt.style.use(path)
@@ -631,7 +633,7 @@ def set_aspect_ratio(ax, aspect=16/9, anchor="bottom", shift=(0.,0.)):
 
 
 def add_isolevel(ax, x, y, z, q, level=None,
-                 view_dir=(0, -1, 0), shading=0.0,
+                 smooth=None, view_dir=(0, -1, 0), shading=0.0,
                  colors="lightgrey", cmap="turbo", vmin=None, vmax=None,
                  **kwargs):
 
@@ -641,6 +643,9 @@ def add_isolevel(ax, x, y, z, q, level=None,
     if level is None:
         level = np.nanpercentile(q, 5)
         print(f"Selected level is {level:.3e}")
+
+    if smooth is not None:
+        q = gaussian_filter(q, smooth)
 
     def compute_face_normals(vertices, faces):
         v0 = vertices[faces[:, 0]]
@@ -682,8 +687,9 @@ def add_isolevel(ax, x, y, z, q, level=None,
         vertex_values = map_coordinates(colors_array, verts_index.T, order=1, mode="nearest")
         face_values = vertex_values[faces].mean(axis=1)
 
-        if vmin is None: vmin = face_values.min()
-        if vmax is None: vmax = face_values.max()
+        if vmin is None: vmin = np.nanpercentile(face_values, 5)
+        if vmax is None: vmax = np.nanpercentile(face_values, 95)
+
         norm = Normalize(vmin=vmin, vmax=vmax)
 
         if isinstance(cmap, Colormap):
@@ -723,22 +729,19 @@ def add_isolevel(ax, x, y, z, q, level=None,
 
 
 
-def add_isolevel_tri(ax, x, y, z, q, level=None,
-                 view_dir=(0, -1, 0), shading=0.0, shading_mode="gouraud",
-                 colors="lightgrey", cmap="turbo",
+def add_isolevel_tri(ax, x, y, z, q, level=None, smooth=None,
+                 view_dir=(0, -1, 0), shading=0.0,
+                 colors=(.9, .9, .9), cmap="turbo",
                  vmin=None, vmax=None, **kwargs):
 
+    # make everything numpy arrays
     q = np.asarray(q)
-    x, y, z = np.unique(np.asarray(x)), np.unique(np.asarray(y)), np.unique(np.asarray(z)),
+    x, y, z = np.unique(np.asarray(x)), np.unique(np.asarray(y)), np.unique(np.asarray(z))
+    colors_array = np.asarray(colors)
+    view_dir = np.asarray(view_dir, dtype=float)
 
-    if level is None:
-        level = np.nanpercentile(q, 5)
-        print(f"Selected level is {level:.3e}")
-
-    pc_kwargs = {"antialiased": True, "rasterized": True}
-    pc_kwargs.update(kwargs)
-
-    def compute_face_normals(vertices, faces):
+    # function to compute face normals
+    def _compute_face_normals(vertices, faces):
         v0 = vertices[faces[:, 0]]
         v1 = vertices[faces[:, 1]]
         v2 = vertices[faces[:, 2]]
@@ -746,13 +749,38 @@ def add_isolevel_tri(ax, x, y, z, q, level=None,
         norms = np.linalg.norm(normals, axis=1, keepdims=True)
         return np.divide(normals,norms, out=np.zeros_like(normals), where=norms!=0)
 
-    view_dir = np.asarray(view_dir, dtype=float)
-    view_dir /= np.linalg.norm(view_dir)
+    # determine level if not given
+    if level is None:
+        level = np.nanpercentile(q, 5)
+        print(f"Selected level is {level:.3e}")
+
+    # smooth q and coloring array smooth is provided
+    colors_is_field = colors_array.shape == q.shape
+    if smooth is not None:
+        q = gaussian_filter(q, smooth)
+        if colors_is_field:
+            colors_array = gaussian_filter(colors_array, smooth)
+
+    # get the cmap
+    if colors_is_field:
+        if isinstance(cmap, Colormap):
+            cmap_object = cmap
+        else:
+            try:
+                cmap_object = cm.get_cmap(cmap)
+            except:
+                cmap_object = get_colormap(cmap)
+
+    # default polycollection kwargs
+    pc_kwargs = {"antialiased": True, "rasterized": True}
+    pc_kwargs.update(kwargs)
+
+
+    #### computations
     view_axis = np.flatnonzero(view_dir)[0]
     projection_axes = np.delete(np.arange(3), view_axis)
 
     dx, dy, dz = x[1] - x[0], y[1] - y[0], z[1] - z[0]
-
     verts, faces, vertex_normals, _ = marching_cubes(q, level=level, spacing=(dx, dy, dz))
     verts_index = verts / np.array([dx, dy, dz])
     # Shift to physical coordinates.
@@ -762,8 +790,8 @@ def add_isolevel_tri(ax, x, y, z, q, level=None,
     # Project vertices onto the requested plane.
     projected_verts = verts[:, projection_axes]
 
-    face_normals = compute_face_normals(verts, faces)
     # view_dir points from the camera into the scene
+    face_normals = _compute_face_normals(verts, faces)
     front_facing = face_normals @ view_dir < 0
     faces = faces[front_facing]
     # Draw distant faces first and nearby faces last
@@ -774,47 +802,34 @@ def add_isolevel_tri(ax, x, y, z, q, level=None,
     # Shading
     ndotv = vertex_normals @ view_dir
     ndotv = np.clip(np.abs(ndotv), 0.0, 1.0)
-    shade = np.sqrt(1.0 - ndotv)
+    shade = 1.0 - ndotv
 
-    colors_array = np.asarray(colors)
-    colors_is_field = colors_array.shape == q.shape
-
-    if colors_is_field:
+    if colors_is_field: # coloring according to the field 'colors'
         # Interpolate the color field onto the isosurface vertices.
         vertex_values = map_coordinates(colors_array, verts_index.T, order=1, mode="nearest")
         if vmin is None: vmin = np.nanmin(vertex_values)
         if vmax is None: vmax = np.nanmax(vertex_values)
         norm = Normalize(vmin=vmin, vmax=vmax)
 
-        if isinstance(cmap, Colormap):
-            cmap_object = cmap
-        else:
-            try:
-                cmap_object = cm.get_cmap(cmap)
-            except:
-                cmap_object = get_colormap(cmap)
-
         if shading == 0:
-            pc = ax.tripcolor(triangulation, vertex_values, shading=shading_mode, cmap=cmap_object, norm=norm, **pc_kwargs)
+            pc = ax.tripcolor(triangulation, vertex_values, shading="gouraud", cmap=cmap_object, norm=norm, **pc_kwargs)
         else:
             vertex_colors = cmap_object(norm(vertex_values))
             shade_factor = np.clip(1.0 - shading * shade, 0.0, 1.0)
             vertex_colors[:, :3] *= shade_factor[:, None]
-            pc = ax.tripcolor(triangulation, np.zeros(len(verts)),shading=shading_mode, cmap=cm.gray, **pc_kwargs)
+            pc = ax.tripcolor(triangulation, np.zeros(len(verts)), shading="gouraud", cmap=cm.gray, **pc_kwargs)
             pc.set_array(None)
             pc.set_facecolors(vertex_colors)
             pc.surface_values = vertex_values
             pc.surface_norm = norm
             pc.surface_cmap = cmap_object
 
-    else:
-        # one base color, optionally shaded
+    else: # one single (possible shaded) color
         vertex_colors = np.tile(to_rgba(colors), (len(verts), 1))
         if shading != 0:
             shade_factor = np.clip(1.0 - shading * shade, 0.0, 1.0)
             vertex_colors[:, :3] *= shade_factor[:, None]
-
-        pc = ax.tripcolor(triangulation, np.zeros(len(verts)), shading=shading_mode, cmap=cm.gray, **pc_kwargs)
+        pc = ax.tripcolor(triangulation, np.zeros(len(verts)), shading="gouraud", cmap=cm.gray, **pc_kwargs)
         pc.set_array(None)
         pc.set_facecolors(vertex_colors)
 
@@ -822,5 +837,14 @@ def add_isolevel_tri(ax, x, y, z, q, level=None,
     coordinates = (x, y, z)
     ax.set_xlim(coordinates[projection_axes[0]].min(), coordinates[projection_axes[0]].max())
     ax.set_ylim(coordinates[projection_axes[1]].min(), coordinates[projection_axes[1]].max())
+
+    if colors_is_field:
+        pc.mappable = ScalarMappable(norm=norm, cmap=cmap_object)
+        pc.mappable.set_array(vertex_values)
+    else:
+        dummy_cmap = ListedColormap([to_rgba(colors)])
+        dummy_norm = Normalize(vmin=level, vmax=level)
+        pc.mappable = ScalarMappable(norm=dummy_norm, cmap=dummy_cmap)
+        pc.mappable.set_array([level])
 
     return pc
