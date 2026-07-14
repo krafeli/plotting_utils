@@ -3,9 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib import cm
-from scipy.interpolate import interp1d
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 import matplotlib.colors as mcolors
+from matplotlib.collections import PolyCollection
+from skimage.measure import marching_cubes
+from scipy.ndimage import map_coordinates
 
 def apply_theme(path):
     plt.style.use(path)
@@ -622,3 +624,95 @@ def set_aspect_ratio(ax, aspect=16/9, anchor="bottom", shift=(0.,0.)):
         raise ValueError("anchor must be 'center', 'bottom', or 'top'")
 
     ax.set_position([p.x0+shift[0], new_y0+shift[1], p.width, new_h])
+
+
+
+
+def add_isolevel(ax, x, y, z, q, level=None,
+                 view_dir=(0, -1, 0), shading=False, 
+                 colors=None, cmap="turbo", vmin=None, vmax=None,
+                 **kwargs):
+
+    q = np.asarray(q)
+    x, y, z = np.unique(np.asarray(x)), np.unique(np.asarray(y)), np.unique(np.asarray(z))
+
+    if level is None:
+        level = np.nanpercentile(q, 5)
+        print(f"Selected level is {level:.3e}")
+
+    def compute_face_normals(vertices, faces):
+        v0 = vertices[faces[:, 0]]
+        v1 = vertices[faces[:, 1]]
+        v2 = vertices[faces[:, 2]]
+        normals = np.cross(v1 - v0, v2 - v0)
+        norms = np.linalg.norm(normals, axis=1, keepdims=True)
+        return np.divide(normals,norms, out=np.zeros_like(normals), where=norms!=0)
+
+    # view dir needs to be axis aligned!!!
+    view_dir = np.asarray(view_dir, dtype=float)
+    view_dir /= np.linalg.norm(view_dir)
+    view_axis = np.flatnonzero(view_dir)[0]
+    projection_axes = np.delete(np.arange(3), view_axis)
+
+    dx, dy, dz = (x[1] - x[0]), (y[1] - y[0]), (z[1] - z[0])
+
+    # marching cubes in voxel coordinates
+    verts, faces, _, _ = marching_cubes(q, level=level, spacing=(dx, dy, dz))
+    verts_index = verts / np.array([dx, dy, dz])
+
+    # shift to physical mins
+    verts[:, 0] += x.min()
+    verts[:, 1] += y.min()
+    verts[:, 2] += z.min()
+    
+    # project triangles onto plane
+    polys = [verts[triangle][:, projection_axes] for triangle in faces]
+
+    normals = compute_face_normals(verts, faces)
+    ndotv = normals @ view_dir
+    ndotv = np.clip(np.abs(ndotv), 0.0, 1.0)
+    shade = (1.0 - ndotv) ** 0.5
+
+    if colors is None: colors = [(0.9, 0.9, 0.9), (0.6, 0.6, 0.6)]
+    colors  = np.asarray(colors) 
+    colors_is_field = (colors.shape == q.shape)
+    
+    if colors_is_field:
+        vertex_values = map_coordinates(colors, verts_index.T, order=1, mode="nearest") 
+        face_values = vertex_values[faces].mean(axis=1) 
+        if vmin is None: vmin = face_values.min() 
+        if vmax is None: vmax = face_values.max() 
+        norm = Normalize(vmin=vmin, vmax=vmax) 
+        
+        try: 
+            cmap = cm.get_cmap(cmap) 
+        except:
+            cmap = get_colormap(cmap)
+
+        face_colors = cmap(norm(face_values)) 
+        
+        if shading:
+            shade_factor = 1.0 - 0.35 * shade
+            face_colors[:, :3] *= shade_factor[:, None]
+    elif shading:
+        cmap = LinearSegmentedColormap.from_list("", colors)
+        face_colors = cmap(shade)
+    else:
+        face_colors = np.mean(colors, axis=0)
+    
+    pc_kwargs = {"facecolors": face_colors, 
+                 "edgecolors": "none", 
+                 "linewidths": 0, 
+                 "antialiaseds": True, 
+                 }
+    pc_kwargs.update(kwargs)
+
+    pc = PolyCollection(polys, **pc_kwargs)
+    pc.set_rasterized(True)
+    ax.add_collection(pc)
+
+    coordinates = (x, y, z)
+    ax.set_xlim(coordinates[projection_axes[0]].min(),coordinates[projection_axes[0]].max())
+    ax.set_ylim(coordinates[projection_axes[1]].min(),coordinates[projection_axes[1]].max())
+
+    return pc
