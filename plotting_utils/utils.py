@@ -19,44 +19,17 @@ def init_theme(theme):
 
 apply_theme(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ub.mplstyle'))
 
-def add_colorbar(ax, mappable, width=0.15, pad=0.1, loc='right', mode='share', rect=True):
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    import matplotlib.pyplot as plt
-    fig = ax.figure
-    if mode == 'share':
-        last_axes = plt.gca()
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes(loc, size=width, pad=pad)
-        plt.sca(last_axes)
-    else:    
-        pos = ax.get_position()
-        pad /= 2.
-        width /= 2.
-        if loc in ['right', 'left']:
-            cbar_width = width * pos.width
-            cbar_height = pos.height
-            if loc == 'right':
-                cbar_x = pos.x1 + pad * pos.width
-            else:
-                cbar_x = pos.x0 - pad * pos.width - cbar_width
-            cbar_y = pos.y0
-        elif loc in ['top', 'bottom']:
-            cbar_height = width * pos.height
-            cbar_width = pos.width
-            if loc == 'top':
-                cbar_y = pos.y1 + pad * pos.height
-            else:
-                cbar_y = pos.y0 - pad * pos.height - cbar_height
-            cbar_x = pos.x0
-        cax = fig.add_axes([cbar_x, cbar_y, cbar_width, cbar_height])
-    
-    cax.grid(False)
-    cax.set_rasterized(True)
-    cbar = fig.colorbar(mappable, cax=cax, location=loc, extendrect=rect)
-    return cbar
-
-
-def add_colorbar2(ax, mappable, width=0.05, length=1.0, pad=0.05, offset=0.0, loc='right', mode='new', norm=None, rect=True):
+def add_colorbar2(ax, mappable,
+                  width=0.05,
+                  length=1.0,
+                  pad=0.05,
+                  offset=0.0,
+                  loc='right',
+                  mode='new',
+                  norm=None,
+                  rect=True,
+                  nticks=5,
+                  **kwargs):
 
     if loc not in ['right', 'left', 'top', 'bottom']:
         raise ValueError('Invalid location')
@@ -78,7 +51,7 @@ def add_colorbar2(ax, mappable, width=0.05, length=1.0, pad=0.05, offset=0.0, lo
 
     width = width * norm
     pad = pad * norm
-
+    #offset= offset*norm
 
     if mode == 'new':
         if loc == 'right':
@@ -110,7 +83,10 @@ def add_colorbar2(ax, mappable, width=0.05, length=1.0, pad=0.05, offset=0.0, lo
 
     cax.grid(False)
     cax.set_rasterized(True)
-    cbar = fig.colorbar(mappable, cax=cax,  extendrect=rect, location=loc)
+    cbar = fig.colorbar(mappable, cax=cax,  extendrect=rect, location=loc, **kwargs)
+
+    vmin, vmax = mappable.get_clim()
+    cbar.set_ticks(np.linspace(vmin, vmax, nticks))
     return cbar
 
 
@@ -219,7 +195,7 @@ def colored_line(ax, x, y, values, cmap='viridis', lw=1, vmax=None, vmin=None, l
 
     return ax, line, lc
 
-def latex_sci_formatter(decimals=3, skip=1, tight_spacing=True):
+def latex_sci_formatter(decimals=3, skip=1, tight_spacing=True, sign=False):
     def formatter(x, pos):
         if skip > 1 and int(pos) % skip != 0:
             return ""
@@ -227,21 +203,32 @@ def latex_sci_formatter(decimals=3, skip=1, tight_spacing=True):
             return "0"
         exponent = int(np.floor(np.log10(abs(x))))
         coeff = x / 10**exponent
+
+        sgn = ""
+        if sign:
+            if x > 0:
+                sgn = "+"
+            if x == 0.:
+                sgn = r"\pm"
+
         if tight_spacing:
-            return rf"${coeff:.{decimals}f}\! \cdot \! 10^{{{exponent}}}$"
+            return rf"${sgn}{coeff:.{decimals}f}\! \cdot \! 10^{{{exponent}}}$"
         else:
-            return rf"${coeff:.{decimals}f} \cdot 10^{{{exponent}}}$"
+            return rf"${sgn}{coeff:.{decimals}f} \cdot 10^{{{exponent}}}$"
     return formatter
 
-def float_formatter(decimals=3, skip=1, sign=False):
+def float_formatter(decimals=3, skip=1, sign=False, end=""):
     def formatter(x, pos):
         if skip > 1 and int(pos) % skip != 0:
             return ""
         sgn = ""
         if sign:
-            if x >= 0:
+            if x > 0:
                 sgn = "+"
-        return rf"${sgn}{x:.{decimals}f}$"
+            if x == 0.:
+                sgn = r"\pm"
+            
+        return rf"${sgn}{x:.{decimals}f}$" + end
     return formatter
 
 def latex_sci_number_formatter(x, decimals=3, tight_spacing=True, multiply=r'\cdot'):
@@ -304,6 +291,22 @@ def truncate_colormap(cmap, min_val=0.2, max_val=1.0, n=256):
     new_cmap = mcolors.LinearSegmentedColormap.from_list(f'trunc({cmap.name},{min_val},{max_val})', new_colors)
     return new_cmap
   
+
+def dummy_legend(ax, labels, colors=None, linestyles=None, linewidths=None, title=None, loc="best", **legend_kwargs):
+    from matplotlib.lines import Line2D
+    n = len(labels)
+    if colors is None:
+        colors = [None] * n
+    if linestyles is None:
+        linestyles = ["-"] * n
+    if linewidths is None:
+        linewidths = [1] * n
+    text_only = all(c is None for c in colors)
+    handles = [Line2D([], [], linestyle="none", linewidth=0, label=label) if color is None else Line2D([0], [0], color=color, linestyle=linestyle, linewidth=linewidth, label=label) for label, color, linestyle, linewidth in zip(labels, colors, linestyles, linewidths)]
+    if text_only:
+        legend_kwargs.setdefault("handlelength", 0)
+        legend_kwargs.setdefault("handletextpad", 0)
+    return ax.legend(handles=handles, title=title, loc=loc, **legend_kwargs)
 
 def get_colormap(name):
     if 'parula' in name:
@@ -441,80 +444,26 @@ def get_colormap(name):
         [0.85967742, 0.36854839, 0.15619355],
         [0.85483871, 0.34677419, 0.12709677],
         [0.85      , 0.325     , 0.098     ]])
-    
+    elif 'bwr' in name:
+        blue = "#1F4E99"   # muted blue
+        red = "#B23A3A"    # muted red
+        white = "#FFFFFF"
+
+        # Small extended white region around the center
+        colors = [
+            (0.00, blue),
+            (0.48, white),
+            (0.52, white),
+            (1.00, red),
+        ]
+
     if '_r' in name:
-        colors = colors[::-1]
-    return LinearSegmentedColormap.from_list(name, colors)
+        colors = [(1 - x, c) for x, c in colors[::-1]]
 
 
-
-def isosurf(X, Y, Z, Q, lvl=None, smoothing=False, ax=None, N=128, colors=[(0.1, 0.1, 0.1), (1,1,1)]):
-    
-    import scipy
-    from skimage.measure import marching_cubes
-    from matplotlib.colors import LightSource
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
-    if not lvl:
-        lvl = np.quantile(Q[~np.isnan(Q)], 0.99)
-        print(lvl)
-
-    if not ax:
-        _, ax = plt.subplots(1, 1, subplot_kw=dict(projection="3d"))
-
-    if smoothing: Q = scipy.ndimage.gaussian_filter(Q, smoothing)
-
-    try:
-        verts, faces, _, _ = marching_cubes(Q, step_size=1, level=lvl)
-    except:
-        print(f"Could not determine isosurfaces for given lvl of {lvl}")
-        return
-    
-    # Transform from index coordinates to real XYZ coordinates
-    shape = np.array(Q.shape)  # (nz, ny, nx) typically
-    mins  = np.array([X.min(), Y.min(), Z.min()])
-    maxs  = np.array([X.max(), Y.max(), Z.max()])
-    ranges = maxs - mins
-
-    
-    verts = mins + verts * (ranges / (shape - 1))
+    return LinearSegmentedColormap.from_list(name, colors, N=256)
 
 
-    print("X bounds:", X.min(), X.max())
-    print("Y bounds:", Y.min(), Y.max())
-    print("Z bounds:", Z.min(), Z.max())
-
-    print("verts x range:", verts[:, 0].min(), verts[:, 0].max())
-    print("verts y range:", verts[:, 1].min(), verts[:, 1].max())
-    print("verts z range:", verts[:, 2].min(), verts[:, 2].max())
-    def compute_face_normals(vertices, faces):
-        v0 = vertices[faces[:, 0]]
-        v1 = vertices[faces[:, 1]]
-        v2 = vertices[faces[:, 2]]
-        # Compute normals using the cross product
-        normals = np.cross(v1 - v0, v2 - v0)
-        norms = np.linalg.norm(normals, axis=1, keepdims=True)
-        return np.where(norms != 0, normals * (1./norms), normals)
-
-    normals = compute_face_normals(verts, faces)
-    ls = LightSource(285,45)
-    light_dir = np.array([np.cos(np.radians(ls.azdeg)), np.sin(np.radians(ls.azdeg)), np.sin(np.radians(ls.altdeg))])
-    shading = np.dot(normals, light_dir)
-    shading = (shading - shading.min()) / (shading.max() - shading.min())
-    cm = LinearSegmentedColormap.from_list("", colors)
-    face_colors = [cm(shade) for shade in shading]
-
-    mesh = Poly3DCollection(verts[faces],
-                            alpha=1,
-                            facecolors=face_colors,
-                            edgecolor='none',
-                            shade=True,
-                            antialiased=False,
-                           )
-
-    mesh.set_rasterized(True)
-    ax.add_collection3d(mesh)
-    return ax
 
 def cmapcycler(cmap, n, vmin=0.05, vmax=0.95):
     from cycler import cycler
@@ -603,16 +552,73 @@ def figsize(nrows, ncols, init='classic'):
     return fig_w, fig_h
 
 def box_save(fig, pth, dpi=1000, top=0., bot=0., left=0., right=0.):
+    """
+    Save a Matplotlib figure after cropping by fractions of figure size.
+
+    top, bot, left, right are fractions from 0 to 1.
+
+    Example:
+        left=0.1  cuts 10% of the figure width from the left
+        top=0.2   cuts 20% of the figure height from the top
+    """
     from matplotlib.transforms import Bbox
+
     fig.canvas.draw()
     bbox = fig.bbox_inches
 
+    width = bbox.width
+    height = bbox.height
 
     new_bbox = Bbox.from_extents(
-        bbox.x0 + left,
-        bbox.y0 + bot,
-        bbox.x1 - right,
-        bbox.y1 - top
+        bbox.x0 + left * width,
+        bbox.y0 + bot * height,
+        bbox.x1 - right * width,
+        bbox.y1 - top * height
     )
 
     fig.savefig(pth, dpi=dpi, bbox_inches=new_bbox)
+    
+    
+def set_aspect_ratio(ax, aspect=16/9, anchor="bottom", shift=(0.,0.)):
+    """
+    Set the physical box aspect ratio of a Matplotlib Axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Target axes.
+    aspect : float or tuple or str
+        Desired width / height ratio.
+        Examples:
+            16/9
+            (16, 9)
+            "16:9"
+    anchor : {"center", "bottom", "top"}
+        Vertical anchoring when resizing height.
+    """
+    if isinstance(aspect, str):
+        w, h = map(float, aspect.split(":"))
+        aspect = w / h
+    elif isinstance(aspect, tuple):
+        w, h = aspect
+        aspect = w / h
+
+    fig = ax.figure
+    fig_w, fig_h = fig.get_size_inches()
+
+    p = ax.get_position()
+
+    # p.width is relative to figure width.
+    # p.height is relative to figure height.
+    new_h = p.width * (fig_w / fig_h) / aspect
+
+    if anchor == "center":
+        new_y0 = p.y0 + (p.height - new_h) / 2
+    elif anchor == "bottom":
+        new_y0 = p.y0
+    elif anchor == "top":
+        new_y0 = p.y1 - new_h
+    else:
+        raise ValueError("anchor must be 'center', 'bottom', or 'top'")
+
+    ax.set_position([p.x0+shift[0], new_y0+shift[1], p.width, new_h])

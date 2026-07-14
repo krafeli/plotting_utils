@@ -1,5 +1,7 @@
 # Color and Marker cyclers
-axes.prop_cycle : (cycler('color', ['k', 'b', 'r', 'g', 'cyan', 'magenta']))
+#axes.prop_cycle : (cycler('color', ['k', 'b', 'r', 'g', 'cyan', 'magenta']))
+#axes.prop_cycle : cycler('color', ['333333', '0052CC', 'D00000', '008C45', '0099B8', '8A00B8'])
+axes.prop_cycle : cycler('color', ['333333', '1F4E99', 'B23A3A', '5B8E2F', '2B7F8E', '7A4D86'])
 
 ## Fonts
 font.family : STIXGeneral
@@ -12,34 +14,43 @@ text.usetex : True
 text.latex.preamble : \usepackage{amsmath} \usepackage{amssymb} \usepackage{siunitx} \usepackage{xfrac} \usepackage[english]{babel} \usepackage{bm}
 
 ## Figsize
-figure.figsize : 2.45, 1.63
+#figure.figsize : 2.45, 1.63
+figure.figsize : 2.45, 1.37
 figure.constrained_layout.use : False
 figure.autolayout : False
 
-figure.subplot.bottom: 0.18
+#figure.subplot.bottom: 0.18
+#figure.subplot.left: 0.18
+#figure.subplot.right: 0.82
+#figure.subplot.top: 0.88
+#figure.subplot.hspace: 0.35
+#figure.subplot.wspace: 0.25
+
+figure.subplot.bottom: 0.22
 figure.subplot.left: 0.18
 figure.subplot.right: 0.82
-figure.subplot.top: 0.88
+figure.subplot.top: 0.84
 figure.subplot.hspace: 0.35
 figure.subplot.wspace: 0.25
 
 
 ## Lines and markes
-lines.linewidth : 1.0
+# lines.linewidth : 0.75
+lines.linewidth : 1.1
 lines.markersize : 0.
 lines.markeredgecolor : 'k'
 lines.markeredgewidth : 0.5
 
 ## axes and grid
 axes.linewidth : 1.0
-axes.grid : True
+axes.grid : False
 grid.linewidth : 0.5
 grid.alpha : 1.00
 grid.linestyle: -
 
 ## title
 axes.titlesize : medium
-axes.titlepad: 4.0
+axes.titlepad: 5.0
 axes.labelpad: 4.0
 
 # x axis
